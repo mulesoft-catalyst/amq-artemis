@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:jms="http://www.mulesoft.org/schema/mule/jms"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core 
+					http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+					http://www.mulesoft.org/schema/mule/jms 
+					http://www.mulesoft.org/schema/mule/jms/current/mule-jms.xsd
+					http://www.mulesoft.org/schema/mule/http 
+					http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<jms:config name="JMS_Config_Publisher" doc:name="JMS Config Publisher" doc:id="3bdfca86-523b-4d8e-b0d5-9ce473e1cc3b" >
+		<jms:generic-connection  specification="JMS_2_0" username="admin" password="admin">
+				<jms:connection-factory >
+				<jms:jndi-connection-factory connectionFactoryJndiName="ConnectionFactory" >
+					<jms:name-resolver-builder jndiInitialContextFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory" jndiProviderUrl="tcp://localhost:61616" />
+				</jms:jndi-connection-factory>
+			</jms:connection-factory>
+			
+		</jms:generic-connection>
+	</jms:config>
+	
+	<jms:config name="JMS_Config_Consumer" doc:name="JMS Config_Consumer" doc:id="e5005a29-8b76-4408-aca5-819ea7f4a841" >
+		<jms:generic-connection  specification="JMS_2_0" username="admin" password="admin">
+				<jms:connection-factory >
+				<jms:jndi-connection-factory connectionFactoryJndiName="ConnectionFactory" >
+					<jms:name-resolver-builder jndiInitialContextFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory" jndiProviderUrl="tcp://localhost:61616" />
+				</jms:jndi-connection-factory>
+			</jms:connection-factory>
+			
+		</jms:generic-connection>
+	</jms:config>
+	
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="95b9e59f-c887-4ef9-9517-ec5b9eb67df6" >
+		<http:listener-connection host="0.0.0.0" port="${http.port}" />
+	</http:listener-config>
+	<flow name="amq-artemisFlowPublisher" doc:id="8a8377f1-2720-4e1d-9919-16a20b2c2eab" >
+		<http:listener doc:name="Listener" doc:id="651fb32b-8b44-49b3-a216-4a2742330dc0" path="/mq" config-ref="HTTP_Listener_config"/>
+		<logger level="INFO" doc:name="Logger" doc:id="d41f0a5a-6e0c-4f7b-ba05-985180e3b53c" message="Received the message in publisher"/>
+		<jms:publish doc:name="Publish" doc:id="00c97b01-9e00-429a-8b5a-6477b1fdb12a" config-ref="JMS_Config_Publisher" destination="testClusterTopic" destinationType="TOPIC">
+			<jms:message >
+				<jms:body ><![CDATA[#[output application/json --- payload]]]></jms:body>
+				<jms:properties ><![CDATA[#[{
+	destination : attributes.queryParams.qname
+}]]]></jms:properties>
+				
+			</jms:message>
+		</jms:publish>
+		<logger level="INFO" doc:name="Logger" doc:id="0fb76037-5ef6-4c8d-928b-1aeb39af68e1" message="Published the message"/>
+	</flow>
+	<flow name="amq-artemisFlowConsumer" doc:id="75bdc499-683f-4a18-a5b3-e68ed466fd45" initialState="started">
+		<jms:listener doc:name="Listener" doc:id="30028fff-721d-4038-aad6-40765f749dd4" destination="testClusterTopic" numberOfConsumers="1" config-ref="JMS_Config_Consumer" selector="destination='myq'">
+			<jms:consumer-type >
+				<jms:topic-consumer subscriptionName="my-artemis-test-mynew-local" durable="true" shared="true"/>
+			</jms:consumer-type>
+		</jms:listener>
+		<logger level="INFO" doc:name="Logger" doc:id="df36a852-eb63-457d-93ec-67961161c5c3" message="Received the message from topic #[payload]"/>
+	</flow>
+</mule>
